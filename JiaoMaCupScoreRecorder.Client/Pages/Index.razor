@@ -71,6 +71,7 @@
         foreach (var columns in result)
         {
             columns[3] = columns[3].Replace(", ", "<br>");
+            columns[3] = columns[3].Replace(",", "<br>");
         }
         _sheetData = result;
     }
@@ -98,7 +99,7 @@
     {
         foreach (var checkedGame in checkedGames)
         {
-            var gameKey = _spreadsheet.First(x => x.Value.Name == checkedGame).Key;
+            var gameKey = _spreadsheet.First(x => x.Value.Name == checkedGame.Trim()).Key;
             var rowNumber = gamePlayerDictionary[gameKey].Count + 1;
             var scoreFormulaString =
                 StringConst.Sheets.Skip(1)
@@ -119,7 +120,7 @@
     {
         foreach (var checkedGame in checkedGames)
         {
-            var gameKey = _spreadsheet.First(x => x.Value.Name == checkedGame).Key;
+            var gameKey = _spreadsheet.First(x => x.Value.Name == checkedGame.Trim()).Key;
             gamePlayerDictionary[gameKey].Add(new List<string>
             {
                 playerDiscordId,
