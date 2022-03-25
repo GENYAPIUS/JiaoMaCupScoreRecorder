@@ -1,10 +1,10 @@
 ﻿@page "/ScoreRecorder"
-@using Google.Apis.Sheets.v4
-@using JiaoMaCupScoreRecorder.Client.Const
 @using JiaoMaCupScoreRecorder.Client.Extensions
 @using JiaoMaCupScoreRecorder.Client.Models
 @using JiaoMaCupScoreRecorder.Client.Services.Interfaces
 @using JiaoMaCupScoreRecorder.Client.StateContainer
+@using JiaoMaCupScoreRecorder.Client.Const
+@using Google.Apis.Sheets.v4
 @inject Dictionary<string, SheetInfoModel> _spreadsheet;
 @inject IGoogleSheetService _sheetService
 @inject StateContainer _stateContainer
@@ -154,7 +154,7 @@
             }
             scoreData.Scores = scores;
             scoreData.ImageUrls = imageUrls;
-            var result = new List<ScoreDataModel>()
+            var result = new List<ScoreDataModel>
             {
                 scoreData
             };

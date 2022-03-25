@@ -35,6 +35,7 @@ public static class DependencyInjectionExtension
         {
             var result = new Dictionary<string, SheetInfoModel>();
             configuration.GetSection("SpreadSheet").Bind(result);
+
             return result;
         });
 

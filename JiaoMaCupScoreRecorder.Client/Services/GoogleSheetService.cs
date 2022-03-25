@@ -34,8 +34,8 @@ public class GoogleSheetService : IGoogleSheetService
         foreach (var (gameName, sheetInfo) in _spreadsheet)
         {
             if (gameName == GamesConst.Players) continue;
-            await AddOrUpdateTotalSheet(gameName, totalSheetDictionary);
             await AddOrUpdateWeekSheet(gameName, weekSheetDictionary);
+            await AddOrUpdateTotalSheet(gameName, totalSheetDictionary);
         }
     }
 
@@ -56,11 +56,14 @@ public class GoogleSheetService : IGoogleSheetService
         var requestBodyJson = JsonSerializerUtils.Serialize(requestBody);
 
         var statusCode =
-            await _js.InvokeAsync<HttpStatusCode>("batchUpdateSheetData", _spreadsheet[gameName].SpreadsheetId, requestBodyJson);
+            await _js.InvokeAsync<HttpStatusCode>("batchUpdateSheetData", _spreadsheet[gameName].SpreadsheetId,
+                requestBodyJson);
 
         if (statusCode != HttpStatusCode.TooManyRequests) return;
         await Task.Delay(60000);
-        _ = await _js.InvokeAsync<HttpStatusCode>("batchUpdateSheetData", _spreadsheet[gameName].SpreadsheetId, requestBodyJson);
+
+        _ = await _js.InvokeAsync<HttpStatusCode>("batchUpdateSheetData", _spreadsheet[gameName].SpreadsheetId,
+            requestBodyJson);
     }
 
     private async Task AddOrUpdateTotalSheet(string gameName,
@@ -102,6 +105,7 @@ public class GoogleSheetService : IGoogleSheetService
         for (var i = 0; i < weekSheetExistList.Count; i++)
         {
             var index = i + 1;
+
             var requestData = new SheetRequestDataModel
             {
                 SheetId = index,
@@ -114,6 +118,7 @@ public class GoogleSheetService : IGoogleSheetService
                 StartColumnIndex = 0,
                 EndColumnIndex = columnNumber
             };
+
             if (weekSheetExistList[i])
             {
                 var requestBody = requestData.ToUpdateSheetsRequestBodyModel();
@@ -146,14 +151,16 @@ public class GoogleSheetService : IGoogleSheetService
         var requestBodyJson = JsonSerializerUtils.Serialize(requestBody);
 
         var statusCode =
-            await _js.InvokeAsync<HttpStatusCode>("checkSheetExist", _spreadsheet[gameName].SpreadsheetId, requestBodyJson);
+            await _js.InvokeAsync<HttpStatusCode>("checkSheetExist", _spreadsheet[gameName].SpreadsheetId,
+                requestBodyJson);
 
         if (statusCode == HttpStatusCode.TooManyRequests)
         {
             await Task.Delay(60000);
 
             statusCode =
-                await _js.InvokeAsync<HttpStatusCode>("checkSheetExist", _spreadsheet[gameName].SpreadsheetId, requestBodyJson);
+                await _js.InvokeAsync<HttpStatusCode>("checkSheetExist", _spreadsheet[gameName].SpreadsheetId,
+                    requestBodyJson);
             var result = statusCode == HttpStatusCode.OK;
 
             return result;
@@ -166,8 +173,9 @@ public class GoogleSheetService : IGoogleSheetService
         }
     }
 
-    private GetSpreadsheetByDataFilterRequest GetSpreadsheetByDataFilterRequestBodyModel(int sheetId) =>
-        new()
+    private GetSpreadsheetByDataFilterRequest GetSpreadsheetByDataFilterRequestBodyModel(int sheetId)
+    {
+        return new GetSpreadsheetByDataFilterRequest
         {
             DataFilters = new List<DataFilter>
             {
@@ -180,4 +188,5 @@ public class GoogleSheetService : IGoogleSheetService
                 }
             }
         };
+    }
 }

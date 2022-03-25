@@ -1,10 +1,9 @@
 ﻿@page "/"
-@using Google.Apis.Sheets.v4
-@using JiaoMaCupScoreRecorder.Client.Const
 @using JiaoMaCupScoreRecorder.Client.Models
 @using JiaoMaCupScoreRecorder.Client.Services.Interfaces
 @using JiaoMaCupScoreRecorder.Client.StateContainer
-@using System.Linq
+@using JiaoMaCupScoreRecorder.Client.Const
+@using Google.Apis.Sheets.v4
 @implements IDisposable
 @inject IJSRuntime _js
 @inject Dictionary<string, SheetInfoModel> _spreadsheet;
@@ -74,7 +73,6 @@
             columns[3] = columns[3].Replace(", ", "<br>");
         }
         _sheetData = result;
-
     }
 
     private async Task OnParseClick()
@@ -98,7 +96,6 @@
 
     private void AddDataToTotalSheet(IDictionary<string, IList<IList<string>>> gamePlayerDictionary, IEnumerable<string> checkedGames, string playerDiscordId, string playerName)
     {
-        
         foreach (var checkedGame in checkedGames)
         {
             var gameKey = _spreadsheet.First(x => x.Value.Name == checkedGame).Key;
@@ -133,7 +130,6 @@
 
     private IDictionary<string, IList<IList<string>>> InitializeWeekSheetDictionary()
     {
-
         var result = _spreadsheet.ToDictionary<KeyValuePair<string, SheetInfoModel>, string, IList<IList<string>>>(x => x.Key, y =>
         {
             var result = new List<IList<string>>
@@ -149,11 +145,11 @@
 
             for (var i = 0; i < y.Value.TrackCount; i++)
             {
-                result[0].Add($"曲目 {i+1} 分數");
+                result[0].Add($"曲目 {i + 1} 分數");
             }
             for (var i = 0; i < y.Value.TrackCount; i++)
             {
-                result[0].Add($"曲目 {i+1} 圖片網址");
+                result[0].Add($"曲目 {i + 1} 圖片網址");
             }
 
             return result;
@@ -176,4 +172,5 @@
         });
         return result;
     }
+
 }

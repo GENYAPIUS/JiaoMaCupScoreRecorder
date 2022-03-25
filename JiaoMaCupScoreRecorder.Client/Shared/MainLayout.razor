@@ -1,8 +1,9 @@
 ﻿@implements IDisposable
+@using Microsoft.AspNetCore.Components.WebAssembly.Hosting
 @using JiaoMaCupScoreRecorder.Client.StateContainer
 @using JiaoMaCupScoreRecorder.Client.Utils
 @using JiaoMaCupScoreRecorder.Client.Models
-@using Microsoft.AspNetCore.Components.WebAssembly.Hosting
+@using JiaoMaCupScoreRecorder.Client.Const
 @inherits LayoutComponentBase
 @inject IJSRuntime _js;
 @inject StateContainer _stateContainer;
@@ -19,15 +20,15 @@
                 目前環境：@_currentEnvironment
             </div>
             <div>
-            @if (!_stateContainer.IsGoogleLoggedIn)
-            {
-                <button class="btn btn-primary" id="authorize_button" @onclick="OnAuthorizeClick">Authorize</button>
-            }
-            else if (_stateContainer.IsGoogleLoggedIn)
-            {
-                <button class="btn btn-primary" id="signout_button" @onclick="OnSignOutClick">Sign Out</button>
-                <div disabled class="btn m-1 disabled btn-success">已登入</div>
-            }
+                @if (!_stateContainer.IsGoogleLoggedIn)
+                {
+                    <button class="btn btn-primary" id="authorize_button" @onclick="OnAuthorizeClick">Authorize</button>
+                }
+                else if (_stateContainer.IsGoogleLoggedIn)
+                {
+                    <button class="btn btn-primary" id="signout_button" @onclick="OnSignOutClick">Sign Out</button>
+                    <div disabled class="btn m-1 disabled btn-success">已登入</div>
+                }
             </div>
         </div>
 
@@ -68,7 +69,15 @@
 
     private string GetEnvironment()
     {
-        return _hostEnvironment.IsProduction() ? "正式" : "開發中";
+        if (_hostEnvironment.IsProduction())
+        {
+            return "正式";
+        }
+        if (_hostEnvironment.IsEnvironment(StringConst.PreProduction))
+        {
+            return "測試";
+        }
+        return "開發";
     }
 
     [JSInvokable]
