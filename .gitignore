@@ -350,4 +350,4 @@ MigrationBackup/
 .ionide/
 
 #appsetting
-JiaoMaCupScoreRecorder/wwwroot/appsettings*
+JiaoMaCupScoreRecorder.Client/wwwroot/appsettings*

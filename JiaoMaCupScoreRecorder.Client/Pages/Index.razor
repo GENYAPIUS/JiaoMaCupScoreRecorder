@@ -1,0 +1,179 @@
+﻿@page "/"
+@using Google.Apis.Sheets.v4
+@using JiaoMaCupScoreRecorder.Client.Const
+@using JiaoMaCupScoreRecorder.Client.Models
+@using JiaoMaCupScoreRecorder.Client.Services.Interfaces
+@using JiaoMaCupScoreRecorder.Client.StateContainer
+@using System.Linq
+@implements IDisposable
+@inject IJSRuntime _js
+@inject Dictionary<string, SheetInfoModel> _spreadsheet;
+@inject IGoogleSheetService _spreadSheetService;
+@inject StateContainer _stateContainer;
+<PageTitle>蕉媽盃成績紀錄器 - 參賽者名單</PageTitle>
+
+<h1>參賽者名單</h1>
+
+<br/>
+
+<button disabled="@IsLoadButtonDisable()" class="btn btn-primary" @onclick="OnLoadClick">讀取</button>
+<button disabled="@IsParseButtonDisable()" class="btn btn-primary" @onclick="OnParseClick">解析資料至各項目表單</button>
+<pre id="content"></pre>
+<br/>
+@if (_sheetData.Count != 0)
+{
+    <table class="table table-bordered table-striped">
+        <thead>
+        <tr>
+            <td>Discord Id</td>
+            <td>名稱</td>
+            <td>E-mail</td>
+            <td>參加的項目</td>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var rows in _sheetData)
+        {
+            <tr>
+                @foreach (var row in rows)
+                {
+                    <td>
+                        @((MarkupString)row)
+                    </td>
+                }
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+@code {
+    private IList<IList<string>> _sheetData = new List<IList<string>>();
+
+    private bool _isParsing;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _stateContainer.OnChange += StateHasChanged;
+        await base.OnInitializedAsync();
+    }
+
+    public void Dispose() { _stateContainer.OnChange -= StateHasChanged; }
+
+    private async Task OnLoadClick()
+    {
+        var requestBody = new GetSheetValuesRequestBodyModel
+        {
+            SpreadsheetId = _spreadsheet[GamesConst.Players].SpreadsheetId,
+            MajorDimensions = SpreadsheetsResource.ValuesResource.BatchGetRequest.MajorDimensionEnum.ROWS,
+            Range = $"{_spreadsheet[GamesConst.Players].Name}!B2:E"
+        };
+        var result = await _spreadSheetService.GetSheet(requestBody);
+        foreach (var columns in result)
+        {
+            columns[3] = columns[3].Replace(", ", "<br>");
+        }
+        _sheetData = result;
+
+    }
+
+    private async Task OnParseClick()
+    {
+        _isParsing = true;
+        var totalSheetDataDictionary = InitializeTotalSheetDictionary();
+        var weekSheetDataDictionary = InitializeWeekSheetDictionary();
+        foreach (var columns in _sheetData)
+        {
+            var checkedGames = columns[3].Split("<br>");
+            AddDataToTotalSheet(totalSheetDataDictionary, checkedGames, columns[1], columns[0]);
+            AddDataToWeekSheet(weekSheetDataDictionary, checkedGames, columns[1], columns[0]);
+        }
+        await _spreadSheetService.InitializeSheet(totalSheetDataDictionary, weekSheetDataDictionary);
+        _isParsing = false;
+    }
+
+    private bool IsLoadButtonDisable() { return !_stateContainer.IsGoogleLoggedIn; }
+
+    private bool IsParseButtonDisable() { return _sheetData.Count == 0 || !_stateContainer.IsGoogleLoggedIn || _isParsing; }
+
+    private void AddDataToTotalSheet(IDictionary<string, IList<IList<string>>> gamePlayerDictionary, IEnumerable<string> checkedGames, string playerDiscordId, string playerName)
+    {
+        
+        foreach (var checkedGame in checkedGames)
+        {
+            var gameKey = _spreadsheet.First(x => x.Value.Name == checkedGame).Key;
+            var rowNumber = gamePlayerDictionary[gameKey].Count + 1;
+            var scoreFormulaString =
+                StringConst.Sheets.Skip(1)
+                    .Aggregate("=", (current, sheetName) => current + $"'{sheetName}'!C{rowNumber}+");
+            scoreFormulaString = scoreFormulaString.TrimEnd('+');
+            var rankFormulaString = $"=RANK(C{rowNumber},C2:C)";
+            gamePlayerDictionary[gameKey].Add(new List<string>
+            {
+                playerDiscordId,
+                playerName,
+                scoreFormulaString,
+                rankFormulaString
+            });
+        }
+    }
+
+    private void AddDataToWeekSheet(IDictionary<string, IList<IList<string>>> gamePlayerDictionary, IEnumerable<string> checkedGames, string playerDiscordId, string playerName)
+    {
+        foreach (var checkedGame in checkedGames)
+        {
+            var gameKey = _spreadsheet.First(x => x.Value.Name == checkedGame).Key;
+            gamePlayerDictionary[gameKey].Add(new List<string>
+            {
+                playerDiscordId,
+                playerName
+            });
+        }
+    }
+
+    private IDictionary<string, IList<IList<string>>> InitializeWeekSheetDictionary()
+    {
+
+        var result = _spreadsheet.ToDictionary<KeyValuePair<string, SheetInfoModel>, string, IList<IList<string>>>(x => x.Key, y =>
+        {
+            var result = new List<IList<string>>
+            {
+                new List<string>
+                {
+                    "Discord Id",
+                    "稱呼",
+                    "積分",
+                    "曲目總得分"
+                }
+            };
+
+            for (var i = 0; i < y.Value.TrackCount; i++)
+            {
+                result[0].Add($"曲目 {i+1} 分數");
+            }
+            for (var i = 0; i < y.Value.TrackCount; i++)
+            {
+                result[0].Add($"曲目 {i+1} 圖片網址");
+            }
+
+            return result;
+        });
+
+        return result;
+    }
+
+    private IDictionary<string, IList<IList<string>>> InitializeTotalSheetDictionary()
+    {
+        var result = _spreadsheet.ToDictionary<KeyValuePair<string, SheetInfoModel>, string, IList<IList<string>>>(x => x.Key, _ => new List<IList<string>>
+        {
+            new List<string>
+            {
+                "Discord Id",
+                "稱呼",
+                "總積分",
+                "名次"
+            }
+        });
+        return result;
+    }
+}

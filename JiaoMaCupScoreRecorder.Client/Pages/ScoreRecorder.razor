@@ -1,0 +1,260 @@
+﻿@page "/ScoreRecorder"
+@using Google.Apis.Sheets.v4
+@using JiaoMaCupScoreRecorder.Client.Const
+@using JiaoMaCupScoreRecorder.Client.Extensions
+@using JiaoMaCupScoreRecorder.Client.Models
+@using JiaoMaCupScoreRecorder.Client.Services.Interfaces
+@using JiaoMaCupScoreRecorder.Client.StateContainer
+@inject Dictionary<string, SheetInfoModel> _spreadsheet;
+@inject IGoogleSheetService _sheetService
+@inject StateContainer _stateContainer
+@inject IJSRuntime _js;
+<PageTitle>蕉媽盃成績紀錄器</PageTitle>
+<h3>成績紀錄器</h3>
+<div>
+    <label for="game">遊戲：</label>
+    <select name="game" class="form-select" @onchange="OnGameSelectChange">
+        <option value="@string.Empty">請選擇</option>
+        @foreach (var (gameName, sheetInfo) in _spreadsheet)
+        {
+            if (gameName == GamesConst.Players)
+            {
+                continue;
+            }
+            <option value="@gameName">@sheetInfo.Name</option>
+        }
+    </select>
+</div>
+<div>
+    <label for="week">週次：</label>
+    <select name="week" class="form-select" @onchange="OnWeekSelectChange">
+        <option value="@string.Empty">請選擇</option>
+        @for (var i = 1; i < _weekList.Count; i++)
+        {
+            <option value="@_weekList[i]">@_weekList[i]</option>
+        }
+    </select>
+</div>
+<div>
+    @if (_sheetData.Any())
+    {
+        <table class="table table-bordered table-striped table-hover mt-3">
+            <thead>
+            <tr>
+                <th>Discord Id</th>
+                <th>稱呼</th>
+                <th>積分</th>
+                <th>曲目總得分</th>
+                <th>曲目得分</th>
+                <th>曲目圖片網址</th>
+            </tr>
+            </thead>
+
+            <tbody>
+            @foreach (var data in _sheetData)
+            {
+                <tr @key=data>
+                    <td>@data.DiscordId</td>
+                    <td>@data.Name</td>
+                    <td>@data.Point</td>
+                    <td>@data.TotalScore</td>
+                    <td>
+                        @for (var i = 0; i < data.Scores.Count; i++)
+                        {
+                            var index = i;
+                            <input type="text" class="form-control" @bind="data.Scores[index]"/>
+                            <br/>
+                        }
+                    </td>
+                    <td>
+                        @for (var i = 0; i < data.ImageUrls.Count; i++)
+                        {
+                            var index = i;
+                            <input type="text" class="form-control" @bind="@data.ImageUrls[index]"/>
+                            <br/>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+        <button type="button" class="btn btn-primary" @onclick="UpdateSheetData">送出</button>
+    }
+</div>
+
+@code {
+    private readonly IList<string> _weekList = StringConst.Sheets;
+    private IList<ScoreDataModel> _sheetData = new List<ScoreDataModel>();
+
+    private string _currentWeek = string.Empty;
+    private string _currentGameName = string.Empty;
+
+    protected override async Task OnInitializedAsync() { await base.OnInitializedAsync(); }
+
+    private async Task OnGameSelectChange(ChangeEventArgs args)
+    {
+        _currentGameName = args.Value as string ?? string.Empty;
+        await GetSheetData();
+    }
+
+    private async Task OnWeekSelectChange(ChangeEventArgs args)
+    {
+        _currentWeek = args.Value as string ?? string.Empty;
+        await GetSheetData();
+    }
+
+    private async Task GetSheetData()
+    {
+        if (_currentGameName == string.Empty || _currentWeek == string.Empty) return;
+        var sheetInfo = _spreadsheet[_currentGameName];
+        var column = StringConst.SheetColumn[4 + sheetInfo.TrackCount * 2];
+        var requestBody = new GetSheetValuesRequestBodyModel
+        {
+            SpreadsheetId = sheetInfo.SpreadsheetId,
+            MajorDimensions = SpreadsheetsResource.ValuesResource.BatchGetRequest.MajorDimensionEnum.ROWS,
+            Range = $"{_currentWeek}!A2:{column}"
+        };
+
+        var sheetData = await _sheetService.GetSheet(requestBody);
+        _sheetData = sheetData.SelectMany(x =>
+        {
+            var scoreData = new ScoreDataModel();
+            var properties = scoreData.GetType().GetProperties();
+            var scores = new List<decimal>();
+            for (var i = 0; i < sheetInfo.TrackCount; i++)
+            {
+                scores.Add(0);
+            }
+            var imageUrls = new List<string>();
+            for (var i = 0; i < sheetInfo.TrackCount; i++)
+            {
+                imageUrls.Add(string.Empty);
+            }
+            for (var i = 0; i < x.Count; i++)
+            {
+                if (i < 4)
+                {
+                    if (properties[i].PropertyType == typeof(decimal))
+                    {
+                        properties[i].SetValue(scoreData, decimal.Parse(x[i]));
+                        continue;
+                    }
+                    properties[i].SetValue(scoreData, x[i]);
+                }
+                else if (i < 4 + sheetInfo.TrackCount)
+                {
+                    var scoreIndex = i - 4;
+                    scores[scoreIndex] = decimal.Parse(x[i]);
+                }
+                else if (i < 4 + sheetInfo.TrackCount * 2)
+                {
+                    var imageIndex = i - (4 + sheetInfo.TrackCount);
+                    imageUrls[imageIndex] = x[i];
+                }
+            }
+            scoreData.Scores = scores;
+            scoreData.ImageUrls = imageUrls;
+            var result = new List<ScoreDataModel>()
+            {
+                scoreData
+            };
+            return result;
+        }).ToList();
+    }
+
+    private async Task UpdateSheetData()
+    {
+        var changedData = _sheetData.Select(x => new ScoreDataModel
+        {
+            DiscordId = x.DiscordId,
+            Name = x.Name,
+            Point = x.Point,
+            Scores = x.Scores,
+            ImageUrls = x.ImageUrls
+        }).ToList();
+
+        CalculateTotalScore(changedData);
+
+        var orderedData = _sheetData.OrderByDescending(x => x.TotalScore).ToList();
+        foreach (var player in _sheetData)
+        {
+            GivePoint(orderedData, player, changedData);
+        }
+
+        var data = new List<IList<object>>();
+        foreach (var scoreData in changedData)
+        {
+            var row = new List<object>
+            {
+                scoreData.DiscordId,
+                scoreData.Name,
+                scoreData.Point,
+                scoreData.TotalScore
+            };
+            row.AddRange(scoreData.Scores.Cast<object>());
+            row.AddRange(scoreData.ImageUrls);
+            data.Add(row);
+        }
+
+        var column = StringConst.SheetColumn[data[0].Count];
+        var requestData = new SheetValuesRequestDataModel
+        {
+            MajorDimension = "ROWS",
+            Range = $"{_currentWeek}!A2:{column}{data.Count + 1}",
+            Values = data,
+            ValueInputOption = "USER_ENTERED"
+        };
+        var requestBody = requestData.ToBatchUpdateValuesRequestModel();
+
+        await _sheetService.BatchUpdateValues(_spreadsheet[_currentGameName].SpreadsheetId, requestBody);
+
+        await GetSheetData();
+    }
+
+    private void CalculateTotalScore(IEnumerable<ScoreDataModel> scoreData)
+    {
+        foreach (var score in scoreData)
+        {
+            CheckImageUrl(score);
+            score.TotalScore = score.Scores.Sum();
+        }
+    }
+
+    private static void CheckImageUrl(ScoreDataModel score)
+    {
+        for (var i = 0; i < score.Scores.Count; i++)
+        {
+            if (score.ImageUrls[i] == string.Empty)
+            {
+                score.Scores[i] = 0;
+            }
+        }
+    }
+
+    private void GivePoint(IEnumerable<ScoreDataModel> orderedData, ScoreDataModel player, IList<ScoreDataModel> changedData)
+    {
+        if (player.ImageUrls.All(x => x == string.Empty))
+        {
+            changedData[_sheetData.IndexOf(player)].Point = StringConst.NoImagePoint;
+            return;
+        }
+        var rank = 1;
+        foreach (var orderedPlayer in orderedData)
+        {
+            if (player.TotalScore == orderedPlayer.TotalScore)
+            {
+                var index = _sheetData.IndexOf(player);
+                changedData[index].Point = StringConst.PointTable[rank - 1];
+                break;
+            }
+            rank++;
+        }
+    }
+
+    private async Task<IList<string>> GetInputsValue()
+    {
+        var result = await _js.InvokeAsync<List<string>>("getInputsValue");
+        return result;
+    }
+
+}
