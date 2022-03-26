@@ -175,8 +175,8 @@
 
         CalculateTotalScore(changedData);
 
-        var orderedData = _sheetData.OrderByDescending(x => x.TotalScore).ToList();
-        foreach (var player in _sheetData)
+        var orderedData = changedData.OrderByDescending(x => x.TotalScore).ToList();
+        foreach (var player in changedData)
         {
             GivePoint(orderedData, player, changedData);
         }
@@ -233,9 +233,10 @@
 
     private void GivePoint(IEnumerable<ScoreDataModel> orderedData, ScoreDataModel player, IList<ScoreDataModel> changedData)
     {
+        
         if (player.ImageUrls.All(x => x == string.Empty))
         {
-            changedData[_sheetData.IndexOf(player)].Point = StringConst.NoImagePoint;
+            changedData[changedData.IndexOf(player)].Point = StringConst.NoImagePoint;
             return;
         }
         var rank = 1;
@@ -243,7 +244,7 @@
         {
             if (player.TotalScore == orderedPlayer.TotalScore)
             {
-                var index = _sheetData.IndexOf(player);
+                var index = changedData.IndexOf(player);
                 changedData[index].Point = StringConst.PointTable[rank - 1];
                 break;
             }
