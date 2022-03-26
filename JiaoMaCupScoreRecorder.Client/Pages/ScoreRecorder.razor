@@ -5,6 +5,7 @@
 @using JiaoMaCupScoreRecorder.Client.StateContainer
 @using JiaoMaCupScoreRecorder.Client.Const
 @using Google.Apis.Sheets.v4
+@using System.Reflection.Metadata.Ecma335
 @inject Dictionary<string, SheetInfoModel> _spreadsheet;
 @inject IGoogleSheetService _sheetService
 @inject StateContainer _stateContainer
@@ -247,6 +248,11 @@
                 var index = changedData.IndexOf(player);
                 changedData[index].Point = StringConst.PointTable[rank - 1];
                 break;
+            }
+
+            if (StringConst.PointTable.Length <= rank)
+            {
+                continue;
             }
             rank++;
         }
