@@ -10,6 +10,18 @@
 @inject IWebAssemblyHostEnvironment _hostEnvironment;
 
 <div class="page">
+    <div class="toast" style="background-color: rgba(0, 0, 0, 0.7); height: 100vh; position: fixed; width: 100vw; z-index: 2;" data-bs-autohide="false">
+        <div class="toast position-fixed toast-error-message" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="false">
+            <div class="toast-header d-flex" style="color: red; font-size: 2vh; height: 5vh; justify-content: space-between;">
+                <span>錯誤訊息</span>
+                <div>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast" aira-label="close" onclick="closeToast()"></button>
+                </div>
+            </div>
+            <div class="toast-body" style="align-items: center; color: red; display: flex; font-size: 50px; height: 100%; justify-content: center; width: 100%;">有重複的圖片</div>
+        </div>
+    </div>
+
     <div class="sidebar">
         <NavMenu/>
     </div>
@@ -87,7 +99,13 @@
         return Task.FromResult(result);
     }
 
-    private async Task GetGoogleSignInStatus() { _stateContainer.IsGoogleLoggedIn = await _js.InvokeAsync<bool>("getSigninStatus"); }
+    private async Task GetGoogleSignInStatus()
+    {
+        _stateContainer.IsGoogleLoggedIn = await _js.InvokeAsync<bool>("getSigninStatus");
+    }
 
-    public void Dispose() { _stateContainer.OnChange -= StateHasChanged; }
+    public void Dispose()
+    {
+        _stateContainer.OnChange -= StateHasChanged;
+    }
 }

@@ -12,5 +12,7 @@ public class ScoreDataModel
 
     public List<decimal> Scores { get; set; } = new();
 
+    public List<decimal> Scores2 { get; set; } = new();
+
     public List<string> ImageUrls { get; set; } = new();
 }

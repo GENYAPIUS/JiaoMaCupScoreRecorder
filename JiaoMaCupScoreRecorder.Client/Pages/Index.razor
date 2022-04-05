@@ -57,7 +57,10 @@
         await base.OnInitializedAsync();
     }
 
-    public void Dispose() { _stateContainer.OnChange -= StateHasChanged; }
+    public void Dispose()
+    {
+        _stateContainer.OnChange -= StateHasChanged;
+    }
 
     private async Task OnLoadClick()
     {
@@ -91,9 +94,9 @@
         _isParsing = false;
     }
 
-    private bool IsLoadButtonDisable() { return !_stateContainer.IsGoogleLoggedIn; }
+    private bool IsLoadButtonDisable() => !_stateContainer.IsGoogleLoggedIn;
 
-    private bool IsParseButtonDisable() { return _sheetData.Count == 0 || !_stateContainer.IsGoogleLoggedIn || _isParsing; }
+    private bool IsParseButtonDisable() => _sheetData.Count == 0 || !_stateContainer.IsGoogleLoggedIn || _isParsing;
 
     private void AddDataToTotalSheet(IDictionary<string, IList<IList<string>>> gamePlayerDictionary, IEnumerable<string> checkedGames, string playerDiscordId, string playerName)
     {

@@ -173,9 +173,8 @@ public class GoogleSheetService : IGoogleSheetService
         }
     }
 
-    private GetSpreadsheetByDataFilterRequest GetSpreadsheetByDataFilterRequestBodyModel(int sheetId)
-    {
-        return new GetSpreadsheetByDataFilterRequest
+    private GetSpreadsheetByDataFilterRequest GetSpreadsheetByDataFilterRequestBodyModel(int sheetId) =>
+        new GetSpreadsheetByDataFilterRequest
         {
             DataFilters = new List<DataFilter>
             {
@@ -188,5 +187,4 @@ public class GoogleSheetService : IGoogleSheetService
                 }
             }
         };
-    }
 }

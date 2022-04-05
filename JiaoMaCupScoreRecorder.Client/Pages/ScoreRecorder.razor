@@ -5,7 +5,6 @@
 @using JiaoMaCupScoreRecorder.Client.StateContainer
 @using JiaoMaCupScoreRecorder.Client.Const
 @using Google.Apis.Sheets.v4
-@using System.Reflection.Metadata.Ecma335
 @inject Dictionary<string, SheetInfoModel> _spreadsheet;
 @inject IGoogleSheetService _sheetService
 @inject StateContainer _stateContainer
@@ -39,14 +38,18 @@
 <div>
     @if (_sheetData.Any())
     {
+        if (_isHaveDuplicateImage)
+        {
+            <span class="position-fixed fixed-error-message">有重複的圖片。</span>
+        }
         <table class="table table-bordered table-striped table-hover mt-3">
             <thead>
             <tr>
-                <th>Discord Id</th>
-                <th>稱呼</th>
-                <th>積分</th>
-                <th>曲目總得分</th>
-                <th>曲目得分</th>
+                <th class="td1">Discord Id</th>
+                <th class="td2">稱呼</th>
+                <th class="td3">積分</th>
+                <th class="td4">曲目<br/>總得分</th>
+                <th class="td5">曲目得分</th>
                 <th>曲目圖片網址</th>
             </tr>
             </thead>
@@ -55,33 +58,119 @@
             @foreach (var data in _sheetData)
             {
                 <tr @key=data>
-                    <td>@data.DiscordId</td>
-                    <td>@data.Name</td>
-                    <td>@data.Point</td>
-                    <td>@data.TotalScore</td>
-                    <td>
+                    <td class="td1">@data.DiscordId</td>
+                    <td class="td2">@data.Name</td>
+                    <td class="td3">@data.Point</td>
+                    <td class="td4">@data.TotalScore</td>
+                    <td class="td5">
                         @for (var i = 0; i < data.Scores.Count; i++)
                         {
                             var index = i;
-                            <input type="text" class="form-control" @bind="data.Scores[index]"/>
-                            <br/>
+                            <div class="m-1 py-1 px-1 row track-score">
+                                <label class="col-form-label px-0 score-label">曲目 @(index + 1)</label>
+                                <div class="col-8 d-flex p-0 score-input">
+                                    <input type="text" class="form-control" @bind="data.Scores[index]"/>
+                                    <input type="text" class="form-control" @bind="data.Scores2[index]"/>
+                                </div>
+                            </div>
                         }
                     </td>
                     <td>
+
                         @for (var i = 0; i < data.ImageUrls.Count; i++)
                         {
                             var index = i;
-                            <input type="text" class="form-control" @bind="@data.ImageUrls[index]"/>
-                            <br/>
+                            <div class="m-1 row p-1 track-image">
+                                <label class="ps-1 pe-0 col-form-label image-label">曲目 @(index + 1)</label>
+                                <div class="p-0 d-flex image-input">
+                                    <input type="text" class="form-control" @bind="@data.ImageUrls[index]"/>
+                                </div>
+                            </div>
                         }
                     </td>
                 </tr>
             }
             </tbody>
         </table>
-        <button type="button" class="btn btn-primary" @onclick="UpdateSheetData">送出</button>
+        <button type="button" class="btn btn-primary position-fixed fixed-button" @onclick="UpdateSheetData">送出</button>
     }
 </div>
+
+<style>
+
+    .fixed-button {
+        bottom: 38px;
+        height: 100px;
+        left: 0;
+        width: 250px;
+    }
+
+    .fixed-error-message {
+        bottom: 80px;
+        color: red;
+        font-size: 20px;
+        font-weight: bold;
+        height: 100px;
+        left: 0;
+        text-align: center;
+        width: 250px;
+    }
+
+    .toast-error-message {
+        height: 50vh;
+        left: 25vw;
+        top: 25vh;
+        width: 50vw;
+    }
+
+    @@media screen and (max-width: 1920px) {
+        .td1 { width: 5%; }
+
+        .td2 { width: 7%; }
+
+        .td3 { width: 3%; }
+
+        .td4 { width: 6%; }
+
+        .td5 { width: 15%; }
+
+        .track-score { border: 1px solid; }
+
+        .track-score > .score-label { width: 24%; }
+
+        .track-score > .score-input { width: 76%; }
+
+        .track-image { border: 1px solid; }
+
+        .track-image > .image-label { width: 6%; }
+
+        .track-image > .image-input { width: 94%; }
+    }
+
+    @@media screen and (max-width: 1366px) {
+        .td1 { width: 10%; }
+
+        .td2 { width: 7%; }
+
+        .td3 { width: 5%; }
+
+        .td4 { width: 9%; }
+
+        .td5 { width: 21%; }
+
+        .track-score { border: 1px solid; }
+
+        .track-score > .score-label { width: 100%; }
+
+        .track-score > .score-input { width: 100%; }
+
+        .track-image { border: 1px solid; }
+
+        .track-image > .image-label { width: 100%; }
+
+        .track-image > .image-input { width: 100%; }
+    }
+</style>
 
 @code {
     private readonly IList<string> _weekList = StringConst.Sheets;
@@ -89,8 +178,12 @@
 
     private string _currentWeek = string.Empty;
     private string _currentGameName = string.Empty;
+    private bool _isHaveDuplicateImage;
 
-    protected override async Task OnInitializedAsync() { await base.OnInitializedAsync(); }
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+    }
 
     private async Task OnGameSelectChange(ChangeEventArgs args)
     {
@@ -122,9 +215,11 @@
             var scoreData = new ScoreDataModel();
             var properties = scoreData.GetType().GetProperties();
             var scores = new List<decimal>();
+            var scores2 = new List<decimal>();
             for (var i = 0; i < sheetInfo.TrackCount; i++)
             {
                 scores.Add(0);
+                scores2.Add(0);
             }
             var imageUrls = new List<string>();
             for (var i = 0; i < sheetInfo.TrackCount; i++)
@@ -154,6 +249,7 @@
                 }
             }
             scoreData.Scores = scores;
+            scoreData.Scores2 = scores2;
             scoreData.ImageUrls = imageUrls;
             var result = new List<ScoreDataModel>
             {
@@ -171,8 +267,16 @@
             Name = x.Name,
             Point = x.Point,
             Scores = x.Scores,
+            Scores2 = x.Scores2,
             ImageUrls = x.ImageUrls
         }).ToList();
+
+        _isHaveDuplicateImage = await IsHaveDuplicateImageFile(changedData);
+
+        if (_isHaveDuplicateImage)
+        {
+            return;
+        }
 
         CalculateTotalScore(changedData);
 
@@ -212,29 +316,63 @@
         await GetSheetData();
     }
 
+    private async Task<bool> IsHaveDuplicateImageFile(List<ScoreDataModel> changedData)
+    {
+        var imageUrls = changedData.SelectMany(x => x.ImageUrls).ToList();
+        for (var i = 0; i < imageUrls.Count; i++)
+        {
+            var imagePath1 = imageUrls[i].Trim();
+            if (!Uri.TryCreate(imagePath1, UriKind.Absolute, out var imageUri1))
+            {
+                continue;
+            }
+            var fileName1 = Path.GetFileName(imageUri1.LocalPath);
+            for (var j = i + 1; j < imageUrls.Count; j++)
+            {
+                var imagePath2 = imageUrls[j].Trim();
+                if (!Uri.TryCreate(imagePath2, UriKind.Absolute, out var imageUri2))
+                {
+                    continue;
+                }
+                var fileName2 = Path.GetFileName(imageUri2.LocalPath);
+                if (fileName1 != fileName2) continue;
+                await _js.InvokeVoidAsync("showToast");
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void CalculateTotalScore(IEnumerable<ScoreDataModel> scoreData)
     {
         foreach (var score in scoreData)
         {
             CheckImageUrl(score);
+            MoveToFirstScoreColumn(score);
             score.TotalScore = score.Scores.Sum();
         }
     }
 
-    private static void CheckImageUrl(ScoreDataModel score)
+    private void MoveToFirstScoreColumn(ScoreDataModel score)
     {
         for (var i = 0; i < score.Scores.Count; i++)
         {
-            if (score.ImageUrls[i] == string.Empty)
-            {
-                score.Scores[i] = 0;
-            }
+            score.Scores[i] += score.Scores2[i];
+        }
+    }
+
+    private void CheckImageUrl(ScoreDataModel score)
+    {
+        for (var i = 0; i < score.Scores.Count; i++)
+        {
+            if (score.ImageUrls[i] != string.Empty) continue;
+            score.Scores[i] = 0;
+            score.Scores2[i] = 0;
         }
     }
 
     private void GivePoint(IEnumerable<ScoreDataModel> orderedData, ScoreDataModel player, IList<ScoreDataModel> changedData)
     {
-        
         if (player.ImageUrls.All(x => x == string.Empty))
         {
             changedData[changedData.IndexOf(player)].Point = StringConst.NoImagePoint;
