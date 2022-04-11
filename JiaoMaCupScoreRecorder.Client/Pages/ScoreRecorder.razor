@@ -316,7 +316,7 @@
         await GetSheetData();
     }
 
-    private async Task<bool> IsHaveDuplicateImageFile(List<ScoreDataModel> changedData)
+    private async Task<bool> IsHaveDuplicateImageFile(IEnumerable<ScoreDataModel> changedData)
     {
         var imageUrls = changedData.SelectMany(x => x.ImageUrls).ToList();
         for (var i = 0; i < imageUrls.Count; i++)
@@ -326,7 +326,7 @@
             {
                 continue;
             }
-            var fileName1 = Path.GetFileName(imageUri1.LocalPath);
+            var localPath1 = imageUri1.LocalPath;
             for (var j = i + 1; j < imageUrls.Count; j++)
             {
                 var imagePath2 = imageUrls[j].Trim();
@@ -334,8 +334,8 @@
                 {
                     continue;
                 }
-                var fileName2 = Path.GetFileName(imageUri2.LocalPath);
-                if (fileName1 != fileName2) continue;
+                var localPath2 = imageUri2.LocalPath;
+                if (localPath1 != localPath2) continue;
                 await _js.InvokeVoidAsync("showToast");
                 return true;
             }
