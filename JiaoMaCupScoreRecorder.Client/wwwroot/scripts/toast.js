@@ -1,10 +1,10 @@
-﻿function showToast() {
-    console.log("showToast called.");
+﻿function showToast(message) {
     const toastElements = [].slice.call(document.querySelectorAll(".toast"));
-    toastElements.forEach(toastElement => console.log(toastElement));
     const toasts = toastElements.map((toastElement) => {
         return new bootstrap.Toast(toastElement);
     });
+    const toastContent = document.querySelector(".toast-body");
+    toastContent.innerHTML = `有重複的圖片。<br>${message}`;
     toasts.forEach(toast => toast.show());
 }
 
